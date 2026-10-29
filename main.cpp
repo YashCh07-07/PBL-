@@ -3,6 +3,7 @@
 #include <vector>
 #include <sstream>
 #include <cctype>
+#include <sys/stat.h>
 
 #include "CorpusManager.h"
 #include "InvertedIndex.h"
@@ -27,6 +28,13 @@ vector<string> tokenizeQuery(const string& query) {
     return tokens;
 }
 
+// Helper to check if a path is a directory or a file
+bool isDirectory(const string& path) {
+    struct stat statbuf;
+    if (stat(path.c_str(), &statbuf) != 0) return false;
+    return (statbuf.st_mode & S_IFDIR) != 0;
+}
+
 int main() {
     cout << "========================================\n";
     cout << "   Local C++ RAG Tool (BM25 + Ollama)   \n";
@@ -37,15 +45,27 @@ int main() {
     BM25Ranker ranker;
     OllamaBridge ollama;
 
-    string corpusFolder = "C:\\Users\\yashc\\OneDrive\\Desktop\\pbl"; 
+    string inputPath;
+    cout << "Please attach a file (.txt, .pdf) or provide a folder path: ";
+    getline(cin, inputPath);
     
-    cout << "Loading documents from folder: " << corpusFolder << "...\n";
+    // Remove quotes if the user dragged and dropped a file into the terminal
+    if (!inputPath.empty() && inputPath.front() == '"' && inputPath.back() == '"') {
+        inputPath = inputPath.substr(1, inputPath.length() - 2);
+    }
+
+    cout << "Loading documents from: " << inputPath << "...\n";
     
-    corpusManager.loadDirectory(corpusFolder);
+    if (isDirectory(inputPath)) {
+        corpusManager.loadDirectory(inputPath);
+    } else {
+        corpusManager.loadFile(inputPath);
+    }
+    
     vector<Document> allDocs = corpusManager.getDocuments();
     
     if (allDocs.empty()) {
-        cout << "Error: No documents found.\n";
+        cout << "Error: No valid text or PDF documents found.\n";
         return 1;
     }
 
